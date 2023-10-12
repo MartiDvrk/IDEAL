@@ -89,6 +89,7 @@ def write_gate_macro_file(ct=True,**kwargs):
     #    kwargs["coreSeconds"] = 60*int(kwargs["minutes_per_job"])
     #kwargs["wantU"] = str(wantU).lower()
     dose2w = True
+    re_alanine = syscfg['write dicom re alanine']
     if ct:
         logger.debug("CT geometry for beamline {}".format(beamline.name))
         kwargs["geometry"] = "CT"
@@ -315,6 +316,39 @@ def write_gate_macro_file(ct=True,**kwargs):
 /gate/actor/dose/enableUncertaintyEdep    false
 /gate/actor/dose/enableDose               true
 /gate/actor/dose/enableDoseToWater        {wantDose2W}
+""".format(**kwargs)
+# Add LET actor for alanine relative efficency calculation
+    if re_alanine:
+        alanine_data_path = '/usr/local/GATE/GateRTion-1.1/install/data/RE_Alanine/'
+        kwargs['alanine_data_path'] = alanine_data_path
+        re_alanine_name = dosedose + '_RE_alanine'
+        kwargs['re_alanine_name'] = re_alanine_name
+        output_section += """
+#=====================================================
+# LET Actor
+#=====================================================
+/gate/actor/addActor    LETActor               alanine_RE
+/gate/actor/alanine_RE/save                     {{OUTPUTDIR}}/{re_alanine_name}.mhd
+/gate/actor/alanine_RE/attachTo                 patient 
+/gate/actor/alanine_RE/setResolution            {dnx} {dny} {dnz}
+/gate/actor/alanine_RE/stepHitType              random
+/gate/actor/alanine_RE/setType               RE
+/gate/actor/alanine_RE/setOtherMaterial    G4_ALANINE
+/gate/actor/alanine_RE/doParallelCalculation True
+/gate/actor/alanine_RE/setDoseEfficiencyFileAndAtomicNumber {alanine_data_path}/RE_Z1.txt 1 
+/gate/actor/alanine_RE/setDoseEfficiencyFileAndAtomicNumber {alanine_data_path}/RE_Z2.txt 2 
+/gate/actor/alanine_RE/setDoseEfficiencyFileAndAtomicNumber {alanine_data_path}/RE_Z3.txt 3 
+/gate/actor/alanine_RE/setDoseEfficiencyFileAndAtomicNumber {alanine_data_path}/RE_Z4.txt 4 
+/gate/actor/alanine_RE/setDoseEfficiencyFileAndAtomicNumber {alanine_data_path}/RE_Z5.txt 5 
+/gate/actor/alanine_RE/setDoseEfficiencyFileAndAtomicNumber {alanine_data_path}/RE_Z6.txt 6 
+/gate/actor/alanine_RE/addFilter                   particleFilter
+/gate/actor/alanine_RE/particleFilter/addParticleZ 1
+/gate/actor/alanine_RE/particleFilter/addParticleZ 2
+/gate/actor/alanine_RE/particleFilter/addParticleZ 3
+/gate/actor/alanine_RE/particleFilter/addParticleZ 4
+/gate/actor/alanine_RE/particleFilter/addParticleZ 5
+/gate/actor/alanine_RE/particleFilter/addParticleZ 6
+
 """.format(**kwargs)
     logger.debug("defined output section")
 

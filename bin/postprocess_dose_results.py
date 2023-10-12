@@ -17,6 +17,7 @@ import shutil
 from glob import glob
 from datetime import datetime
 from utils.gamma_index import get_gamma_index
+from functools import reduce
 
 if False:
     logging.basicConfig(level=logging.DEBUG)
@@ -231,7 +232,9 @@ def compress_jobdata(cfg,outputdirs,statfiles):
         except Exception as e:
             logger.error("oopsie: '{}'".format(e))
 
-
+def get_img_array(img_path):
+    dose=itk.imread(img_path)
+    return itk.GetArrayFromImage(dose)
 
 ######################################################################################
 # Implementation details: accumulate the doses, apply rescaling and correction factors
@@ -255,7 +258,11 @@ def post_processing(cfg,pdd,cul):
     dcm_dose_physical = mhd_dose_physical.replace(".mhd",".dcm")
     dcm_dose_full_ct = dcm_dose_physical.replace(".dcm","_DEBUG_FULL_CT_GRID.dcm")
     dcm_dose_rbe = mhd_dose_rbe.replace(".mhd",".dcm")
+    mhd_re_alanine = mhd_dose_sum.replace(".mhd","-RE_Alanine.mhd")
+    dcm_re_alanine = mhd_re_alanine.replace(".mhd",".dcm")
     mhdlist = [str(os.path.join(d,cfg.dosemhd)) for d in os.listdir(os.curdir) if d[:7]=="output." and os.path.isdir(d) and os.path.exists(os.path.join(d,cfg.dosemhd))]
+    re_num_list = [str(os.path.join(d,cfg.re_num_mhd)) for d in os.listdir(os.curdir) if d[:7]=="output." and os.path.isdir(d) and os.path.exists(os.path.join(d,cfg.re_num_mhd))]
+    re_den_list = [str(os.path.join(d,cfg.re_den_mhd)) for d in os.listdir(os.curdir) if d[:7]=="output." and os.path.isdir(d) and os.path.exists(os.path.join(d,cfg.re_den_mhd))]
     if len(mhdlist)==cfg.nJobs:
         logger.info("got all {} dose files".format(cfg.nJobs))
     else:
@@ -320,6 +327,29 @@ def post_processing(cfg,pdd,cul):
         logger.error("failed to find any primaries for beam '{}', cannot scale any dose.".format(cfg.origname))
         return False
     logger.info("total simulated number of primaries is {}".format(nMC))
+    # if relative efficiency analysis: create rel eff image
+    logger.info("write_dicom_re_alanine = {}".format(cfg.write_dicom_re_alanine))
+    if cfg.write_dicom_re_alanine:
+        logger.info("Going to sum up separately numerator and denominator for re alanine")
+        logger.info("found {} images".format(len(re_num_list)))
+        num = get_img_array(re_num_list[0])
+        denom = get_img_array(re_den_list[0])
+        for mhd_n, mhd_d in zip(re_num_list[1:],re_den_list[1:]):
+            print(mhd)
+            num += get_img_array(mhd_n)
+            denom += get_img_array(mhd_d)
+        #sum_imgs = lambda mhd1, mhd2: get_img_array(mhd1) + get_img_array(mhd2)
+        #num = reduce(sum_imgs,re_num_list)
+        #denom = reduce(sum_imgs,re_den_list)
+        logger.info("Sums are ready, going to perform division")
+        re_alanine_array = np.divide(num, denom, out=np.zeros_like(num), where=denom!=0)
+        logger.info("going to make an image")
+        re_alanine_img = itk.GetImageFromArray(np.float32(re_alanine_array))
+        re_alanine_img.CopyInformation(dose0) # assuming all image info (origine, resolution, spacing) are the same as the dose img
+        #itk.imwrite(re_alanine_img,mhd_re_alanine)
+        logger.info("Write RE image to dicom")
+        image_2_dicom_dose(re_alanine_img,str(cfg.dcm_beam_in),str(dcm_re_alanine),physical=True)
+        
     # now make an image
     dose_sum = itk.GetImageFromArray(np.float32(adose))
     dose_sum.CopyInformation(dose0)
@@ -461,6 +491,9 @@ class post_proc_config:
         dosemhd=sec.get("dosemhd")
         self.dose2water=sec.getboolean("dose2water")
         self.dosemhd=dosemhd.replace(".mhd","-DoseToWater.mhd" if self.dose2water else "-Dose.mhd")
+        # Alanine
+        self.re_num_mhd = self.dosemhd.replace(".mhd","_RE_alanine-relEfficiency-letToG4_ALANINE-numerator.mhd")
+        self.re_den_mhd = self.dosemhd.replace(".mhd","_RE_alanine-relEfficiency-letToG4_ALANINE-denominator.mhd")
         self.dose_origin=np.array([float(v) for v in sec.get("dose grid origin").split()])
         self.dose_size=np.array([float(v) for v in sec.get("dose grid size").split()])
         self.dose_nvoxels=np.array([int(v) for v in sec.get("dose grid resolution").split()])
@@ -480,6 +513,8 @@ class post_proc_config:
         self.write_mhd_rbe_dose = sec.getboolean("write mhd rbe dose")
         self.write_dicom_physical_dose = sec.getboolean("write dicom physical dose")
         self.write_dicom_rbe_dose = sec.getboolean("write dicom rbe dose")
+        # Alanine
+        self.write_dicom_re_alanine = sec.getboolean("write dicom re alanine")
         self.dicom_plan_dose = sec.get("dicom plan dose")
         self.mhd_plan_dose = sec.get("mhd plan dose")
         self.dcm_plan_in = sec.get("plan dcm template")

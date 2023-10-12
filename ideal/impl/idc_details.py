@@ -534,6 +534,7 @@ class IDC_details:
         parser['DEFAULT']["write mhd rbe dose"]       = str(syscfg["write mhd rbe dose"])
         parser['DEFAULT']["write dicom physical dose"]= str(syscfg["write dicom physical dose"])
         parser['DEFAULT']["write dicom rbe dose"]     = str(syscfg["write dicom rbe dose"])
+        parser['DEFAULT']["write dicom re alanine"]     = str(syscfg["write dicom re alanine"])
         parser['DEFAULT']["write unresampled dose"]   = "yes" if self.score_dose_on_full_CT else "no"
         parser['DEFAULT']["dose grid size"]           = " ".join([str(val) for val in self.dosegrid_size])
         parser['DEFAULT']["dose grid resolution"]     = " ".join([str(val) for val in self.dosegrid_nvoxels])
