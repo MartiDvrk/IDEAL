@@ -132,7 +132,7 @@ class log_manager:
                                 self.log.info(f"{r.status_code} || {r.text}")
                                 parser[i]['results uploaded'] = 'true'
                     # Clean up data for historic jobs
-                    else:
+                    elif parser[i]['Condor status'] in self.end_status:
                         self.cleanup_workdir(parser[i],self.completed_dir,self.failed_dir)
                 else:
                     parser[i]['Condor status'] = self.job_status_dict['submission_err']

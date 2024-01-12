@@ -192,6 +192,7 @@ class hlut:
             logger.debug(f"Skipping '{self.name}': no DICOM match items given, can only be selected manually.")
             return False
         logger.debug(f"Trying to match the '{self.name}' CT protocol")
+        print(self.dicom_match)
         for k,m in self.dicom_match.items():
             if k in ct:
                 ctk=str(ct[k].value)

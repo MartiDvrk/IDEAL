@@ -44,7 +44,7 @@ class IDEAL_CT_dictionary:
 	
 	def __init__(self):
 		
-		self.CT = ["InstanceCreationDate","SeriesInstanceUID","ImagePositionPatient", 
+		self.CT = ["InstanceCreationDate","SeriesInstanceUID","ImagePositionPatient", #"SeriesDescription",
 		"RescaleIntercept","RescaleSlope","InstanceCreationTime","ImagePositionPatient","PixelSpacing"] # Optional: "InstitutionName"
 			
 			

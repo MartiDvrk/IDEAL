@@ -128,6 +128,7 @@ def start_new_job(data):
         phantom = data['phantom']
     
     data_checksum = ap.sha1_directory_checksum(commissioning_dir)
+    print(data_checksum)
     if data_checksum != ref_checksum:
         return jsonify({"configChecksum":"Configuration has changed from frozen original one"}), 503
     
@@ -146,6 +147,7 @@ def start_new_job(data):
     
     # check dicom
     ok, missing_keys = dcm.verify_all_dcm_keys(datadir,rp,rs,cts,rds)
+    print(missing_keys)
     if not ok:
         #return Response(str(missing_keys), status=422, mimetype='application/json')
         return jsonify(missing_keys), 422
