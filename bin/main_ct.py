@@ -17,7 +17,9 @@ if __name__ == '__main__':
     
     # initialize simulation
     #rp = '/home/aresch/Data/09_ClinicalPatients/10_tagman/Pat_c3/bs1/RP1.2.752.243.1.1.20230503083217300.1066.37543.dcm'
-    rp = '/home/ideal/0_Data/02_ref_RTPlans/IR2HBLc/05_FrameFactor/ISD50cm_RS/200.0MeV/OF_F1_corrected/OF_F1_corrected_tagman.dcm'
+    #rp = '/home/ideal/0_Data/02_ref_RTPlans/IR2HBLc/05_FrameFactor/ISD50cm_RS/200.0MeV/OF_F1_corrected/OF_F1_corrected_tagman.dcm'
+    rp = '/home/ideal/0_Data/10_PatientData/01_RefPlans/02_Carbon/01_Pat1/bs1/RP1.2.752.243.1.1.20230503082000916.2540.86323.dcm'
+    rp = '/home/ideal/0_Data/05_functionalTests/02_Geometry/01_grid_positioning/b1_GeometryTest_PhantID27/RP1.2.752.243.1.1.20230428151936450.4400.26621.dcm'
     
     # test dicom conformity
     ok_rp, mk = dcm.check_RP(rp)

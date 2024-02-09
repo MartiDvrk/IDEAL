@@ -211,9 +211,9 @@ class ideal_simulation():
     def start_simulation(self):
         logger = self.sysconfig.logger
         jobexec = job_executor.create_condor_job_executor(self.current_details)
+        self.workdir = jobexec.template_gate_work_directory
         ret, condor_id =jobexec.launch_subjobs()
         self.condor_id = condor_id
-        self.workdir = jobexec.template_gate_work_directory
         self.submission_date = jobexec.submission_date
         self.settings = jobexec.settings
         if ret!=0:

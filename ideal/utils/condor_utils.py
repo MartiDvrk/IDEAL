@@ -74,15 +74,17 @@ def get_jobs_status():
     lines = out.split("\\n")
     header = [i for i in lines if i.startswith('OWNER')][0]
     start_job_lines = lines.index(header)+1
-    job = lines[start_job_lines]
+    #job = lines[start_job_lines]
     for job in lines[start_job_lines:]:
         if job == '': break
         job_info = [j for j in job.split(" ") if j!='']
-        job_id = job_info[-1].split(".")[0]
+        #job_id = job_info[-1].split(".")[0]
+        job_id = job_info[1].split('+')[-1]
         jobs_status[job_id] = dict()
         jobs_status[job_id]["IDs"] = job_info[-1].split(".")[1]
         jobs_status[job_id]["RUN"] = job_info[5]
         jobs_status[job_id]["IDLE"] = job_info[6]
+        jobs_status[job_id]["TOTAL"] = job_info[7]
         jobs_status[job_id]["DONE"] = job_info[4]
         if 'HOLD' in header:
             jobs_status[job_id]["HOLD"] = job_info[7]
@@ -107,9 +109,9 @@ def get_job_age(date_str,tformat):
 def condor_id(run_dagmann):
     ret, out = shell_output_ret(run_dagmann)
     dagmann_id = out.splitlines()[1].split(" ")[-1][:-1]
-    condor_id = int(dagmann_id) + 1
+    #dagmann_id = int(dagmann_id) # + 1
     
-    return ret, str(condor_id)
+    return ret, dagmann_id
 
 def zip_dir_tree(base_name,form,root_dir):
     shutil.make_archive(base_name,form,root_dir)

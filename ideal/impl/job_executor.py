@@ -64,6 +64,7 @@ from glob import glob
 from subprocess import Popen
 import numpy as np
 import itk
+from functools import reduce
 
 # IDEAL imports
 from utils.gate_pbs_plan_file import gate_pbs_plan_file
@@ -351,11 +352,11 @@ class condor_job_executor(job_executor):
             jobsh.write("du -hcs *\n")
         os.chmod("RunGATEqt.sh",stat.S_IREAD|stat.S_IRWXU)
         
-    def _write_RunGATE_submit(self):
+    def _write_RunGATE_submit(self,f_name,qspec):
         ####################
         syscfg = system_configuration.getInstance()
         ####################
-        with open("RunGATE.submit","w") as jobsubmit:
+        with open(f_name,"w") as jobsubmit:
             jobsubmit.write("universe = vanilla\n")
             jobsubmit.write("executable = {}/RunGATE.sh\n".format(self._RUNGATE_submit_directory))
             jobsubmit.write("should_transfer_files = NO\n")
@@ -372,22 +373,32 @@ class condor_job_executor(job_executor):
             jobsubmit.write("next_job_start_delay = {}\n".format(syscfg["htcondor next job start delay [s]"]))
             jobsubmit.write("notification = error\n")
             # the actual submit command:
-            for beamname,qspec in self._qspecs.items():
-                origname=qspec["origname"]
-                jobsubmit.write("request_memory = {}\n".format(self.details.calculate_ram_request_mb(origname)))
-                jobsubmit.write("arguments = {} $(CLUSTER) $(PROCESS)\n".format(qspec['macfile']))
-                jobsubmit.write("queue {}\n".format(qspec['nJobs']))
-        os.chmod("RunGATE.submit",stat.S_IREAD|stat.S_IWUSR)
+            #for beamname,qspec in self._qspecs.items():
+            origname=qspec["origname"]
+            jobsubmit.write("request_memory = {}\n".format(self.details.calculate_ram_request_mb(origname)))
+            jobsubmit.write("arguments = {} $(CLUSTER) $(PROCESS)\n".format(qspec['macfile']))
+            jobsubmit.write("queue {}\n".format(qspec['nJobs']))
+        os.chmod(f_name,stat.S_IREAD|stat.S_IWUSR)
         
-    def _write_dagman(self,use_ct_geo_flag):
+    def _write_dagman(self,use_ct_geo_flag,rungate_subs):
         ####################
         syscfg = system_configuration.getInstance()
         ####################
         with open("RunGATE.dagman","w") as dagman:
+            jobs = [f'rungate_{i}' for i in range(len(rungate_subs))]
             if use_ct_geo_flag:
-                dagman.write("SCRIPT PRE  rungate {}/preprocess_ct_image.py\n".format(syscfg["bindir"]))
-            dagman.write("JOB         rungate ./RunGATE.submit\n")
-            dagman.write("SCRIPT POST rungate {}/postprocess_dose_results.py\n".format(syscfg["bindir"]))
+                dagman.write("SCRIPT PRE  rungate_0 {}/preprocess_ct_image.py\n".format(syscfg["bindir"]))
+            for i, filename in enumerate(rungate_subs):
+                dagman.write(f"JOB         rungate_{i} ./{filename}\n")
+            dagman.write(f"SCRIPT POST rungate_{i} {syscfg['bindir']}/postprocess_dose_results.py\n")
+            if len(jobs) >=3:
+                # enforce that all jobs starts only after the first one is completed
+                dagman.write('\nPARENT ' + jobs[0] + ' CHILD ' + reduce(lambda x1,x2: x1 + ' ' + x2, jobs[1:-1]))
+                # enforce that all jobs must be completed before the post processor starts
+                dagman.write('\nPARENT ' + reduce(lambda x1,x2: x1 + ' ' + x2, jobs[1:-1]) + ' CHILD ' + f'rungate_{len(rungate_subs)-1}')
+            if len(jobs) == 2:
+                dagman.write('\nPARENT ' + jobs[0] + ' CHILD ' + jobs[1])
+                
         os.chmod("RunGATE.dagman",stat.S_IREAD|stat.S_IWUSR)
                 
     def _populate_RUNGATE_submit_directory(self):
@@ -485,10 +496,14 @@ class condor_job_executor(job_executor):
         input_files = ["RunGATE.sh", "macdata.tar.gz","{}/locked_copy.py".format(syscfg["bindir"])]
         if use_ct_geo_flag:
             input_files.append("ct.tar.gz")
-        self._write_RunGATE_submit()
+        rungate_subfiles = []
+        for beamname,qspec in self._qspecs.items():
+            f_name = f'RunGATE_{beamname}.submit'
+            self._write_RunGATE_submit(f_name,qspec)
+            rungate_subfiles.append(f_name)
         logger.debug("wrote condor submit file")
         self.details.WritePostProcessingConfigFile(self._RUNGATE_submit_directory,self._qspecs,plan_dose_file)
-        self._write_dagman(use_ct_geo_flag)
+        self._write_dagman(use_ct_geo_flag,rungate_subfiles)
         logger.debug("wrote condor dagman file")
         with tarfile.open("macdata.tar.gz","w:gz") as tar:
             tar.add("mac")
