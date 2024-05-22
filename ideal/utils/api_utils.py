@@ -42,7 +42,7 @@ def transfer_files_to_server(outputdir,api_cfg):
             logFile = file
     if logFile is not None and monteCarloDoseDicom is not None:
         # first authenticate
-        login_data = {'account_login': 'fava', 'account_pwd': 'Password456'} # TODO use login provided by myQA iON
+        login_data = {'account-login': 'YWRtaW4=', 'account-pwd': 'YWRtaW4='} # TODO use login provided by myQA iON
         ra = requests.get(api_cfg['receiver']['url authentication'],headers = login_data,verify=False)
         token = ra.json()['authToken']
         with open(os.path.join(outputdir,monteCarloDoseDicom),'rb') as f1:
@@ -164,16 +164,16 @@ def check_file_extension(filename,extension = '.zip'):
     else:      
         return False
 
-def sha1_directory_checksum(path):
+def sha1_directory_checksum(data_dir_path,*file_paths):
     digest = hashlib.sha1()
 
-    for root, dirs, files in os.walk(path):
+    for root, dirs, files in os.walk(data_dir_path):
         dirs[:] = [d for d in dirs if d not in ['phantoms','cache']]
         for names in files:
             file_path = os.path.join(root, names)
 
             # Hash the path and add to the digest to account for empty files/directories
-            digest.update(hashlib.sha1(file_path[len(path):].encode()).digest())
+            digest.update(hashlib.sha1(file_path[len(data_dir_path):].encode()).digest())
 
             # Per @pt12lol - if the goal is uniqueness over repeatability, this is an alternative method using 'hash'
             # digest.update(str(hash(file_path[len(path):])).encode())
@@ -185,6 +185,16 @@ def sha1_directory_checksum(path):
                         if not buf:
                             break
                         digest.update(buf)
+                        
+    for file_path in file_paths:
+        if os.path.isfile(file_path):
+            with open(file_path, 'rb') as f_obj:
+                while True:
+                    buf = f_obj.read(1024 * 1024)
+                    if not buf:
+                        break
+                    digest.update(buf)
+                    
 
     return digest.hexdigest()
 
